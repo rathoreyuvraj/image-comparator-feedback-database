@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Slider with Feedback and Zoom</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+        .zoom-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 600px;
+            height: 400px;
+            overflow: hidden;
+            margin-top: 50px;
+            transform-origin: center;
+            transition: transform 0.3s ease;
+        }
+        .slider-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .slider-container img {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .slider-container .image1 {
+            z-index: 1;
+        }
+        .slider-container .image2 {
+            z-index: 2;
+        }
+        .slider-handle {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 5px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            cursor: ew-resize;
+            z-index: 3;
+            transform: translateX(-50%);
+        }
+        .feedback {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .zoom-buttons {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="zoom-container" id="zoom-container">
+        <div class="slider-container" id="slider-container">
+            <img src="images/image1.jpg" alt="Image 1" class="image1" id="image1">
+            <img src="images/image2.jpg" alt="Image 2" class="image2" id="image2">
+            <div class="slider-handle" id="slider-handle"></div>
+        </div>
+    </div>
+    <div class="zoom-buttons">
+        <button onclick="zoomIn()">Zoom In</button>
+        <button onclick="zoomOut()">Zoom Out</button>
+    </div>
+    <div class="feedback">
+        <textarea id="feedback" rows="4" cols="50" placeholder="Enter your feedback..."></textarea><br>
+        <button onclick="submitFeedback()">Submit Feedback</button>
+        <button onclick="loadNextImages()">Load Next Images</button>
+    </div>
+    <script>
+        const sliderHandle = document.getElementById('slider-handle');
+        const image1 = document.getElementById('image1');
+        const image2 = document.getElementById('image2');
+        const sliderContainer = document.getElementById('slider-container');
+        const zoomContainer = document.getElementById('zoom-container');
+        let currentIndex = 0;
+        let zoomLevel = 1;
+
+        sliderHandle.addEventListener('mousedown', startDragging);
+
+        function startDragging(event) {
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDragging);
+        }
+
+        function drag(event) {
+            const rect = sliderContainer.getBoundingClientRect();
+            let offsetX = event.clientX - rect.left;
+
+            if (offsetX < 0) offsetX = 0;
+            if (offsetX > rect.width) offsetX = rect.width;
+
+            sliderHandle.style.left = `${offsetX}px`;
+            updateClipPath();
+        }
+
+        function stopDragging() {
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDragging);
+        }
+
+        function updateClipPath() {
+            const offsetX = parseFloat(sliderHandle.style.left);
+            image2.style.clip = `rect(0, ${offsetX}px, ${image2.clientHeight}px, 0)`;
+        }
+
+        function submitFeedback() {
+            const feedback = document.getElementById('feedback').value;
+            fetch('/submit-feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ feedback, image1: image1.src, image2: image2.src }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Feedback submitted successfully!');
+                document.getElementById('feedback').value = ''; // Clear the textbox
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        function loadNextImages() {
+            currentIndex += 2;
+            fetch(`/get-images?index=${currentIndex}`)
+            .then(response => response.json())
+            .then(data => {
+                image1.src = data.image1;
+                image2.src = data.image2;
+                resetSlider();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function resetSlider() {
+            sliderHandle.style.left = '50%';
+            zoomLevel = 1;
+            zoomContainer.style.transform = `scale(${zoomLevel})`;
+            updateClipPath();
+        }
+
+        function zoomIn() {
+            zoomLevel += 0.1;
+            updateZoom();
+        }
+
+        function zoomOut() {
+            zoomLevel -= 0.1;
+            if (zoomLevel < 1) zoomLevel = 1;
+            updateZoom();
+        }
+
+        function updateZoom() {
+            zoomContainer.style.transform = `scale(${zoomLevel})`;
+            updateClipPath();
+        }
+    </script>
+</body>
+</html>
