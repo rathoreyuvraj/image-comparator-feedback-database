@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Slider with Feedback and Zoom</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+        .single-image-container {
+            width: 600px; /* Adjust width as per your design */
+            height: 400px; /* Adjust height as per your design */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            background-color: #ffffff; /* Match background color of zoom-container */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden; /* Added for panning */
+            position: relative; /* Added for panning */
+        }
+
+        .single-image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* Maintain aspect ratio and fit within the container */
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .zoom-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            margin-top: 50px;
+            transform-origin: center;
+            transition: transform 0.3s ease;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative; /* Added for panning */
+        }
+        .slider-container {
+            position: relative;
+            width: 600px;
+            height: 400px;
+            overflow: hidden;
+            border-radius: 10px;
+            cursor: grab; /* Added for panning */
+        }
+        .slider-container img {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        .slider-container .image1 {
+            z-index: 1;
+        }
+        .slider-container .image2 {
+            z-index: 2;
+        }
+        .slider-handle {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 5px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            cursor: ew-resize;
+            z-index: 3;
+            transform: translateX(-50%);
+        }
+        .feedback {
+            margin-top: 20px;
+            text-align: center;
+            width: 100%;
+        }
+        .feedback textarea {
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: none;
+            font-size: 14px;
+        }
+        .feedback button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .feedback button:hover {
+            background-color: #45a049;
+        }
+        .zoom-buttons {
+            margin-top: 10px;
+        }
+        .zoom-buttons button {
+            margin: 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #2196F3;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .zoom-buttons button:hover {
+            background-color: #1e88e5;
+        }
+        .radio-buttons {
+            margin-top: 10px;
+        }
+        .radio-buttons label {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="single-image-container" id="single-image-container">
+        <img src="" alt="Single Image" id="single-image">
+    </div>
+    <div class="zoom-container" id="zoom-container">
+        <div class="slider-container" id="slider-container">
+            <img src="images/image1.jpg" alt="Image 1" class="image1" id="image1">
+            <img src="images/image2.jpg" alt="Image 2" class="image2" id="image2">
+            <div class="slider-handle" id="slider-handle"></div>
+        </div>
+        <div class="zoom-buttons">
+            <button onclick="zoomIn()">Zoom In</button>
+            <button onclick="zoomOut()">Zoom Out</button>
+        </div>
+        <div class="feedback">
+            <textarea id="feedback" rows="4" cols="50" placeholder="Enter your feedback..."></textarea><br>
+            <div class="radio-buttons">
+                <label>
+                    <input type="radio" name="rating" value="1"> left
+                </label>
+                <label>
+                    <input type="radio" name="rating" value="1"> right
+                </label>
+            </div>
+            <button onclick="submitFeedback()">Submit Feedback</button>
+            <button onclick="loadNextImages()">Load Next Images</button>
+        </div>
+    </div>
+    <script>
+        const sliderHandle = document.getElementById('slider-handle');
+        const image1 = document.getElementById('image1');
+        const image2 = document.getElementById('image2');
+        const sliderContainer = document.getElementById('slider-container');
+        const zoomContainer = document.getElementById('zoom-container');
+        const singleImageContainer = document.getElementById('single-image-container');
+        const singleImage = document.getElementById('single-image');
+        let currentIndex = 0;
+        let singleImageIndex = 0;
+        let zoomLevel = 1;
+        let isDragging = false; /* Added for panning */
+        let startX, startY; /* Added for panning */
+        let panX = 0, panY = 0; /* Added for panning */
+
+        window.onload = loadNextSingleImage;
+
+        sliderHandle.addEventListener('mousedown', startDragging);
+
+        function startDragging(event) {
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDragging);
+        }
+
+        function drag(event) {
+            const rect = sliderContainer.getBoundingClientRect();
+            let offsetX = event.clientX - rect.left;
+
+            if (offsetX < 0) offsetX = 0;
+            if (offsetX > rect.width) offsetX = rect.width;
+
+            sliderHandle.style.left = `${offsetX}px`;
+            updateClipPath();
+        }
+
+        function stopDragging() {
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDragging);
+        }
+
+        function updateClipPath() {
+            const offsetX = parseFloat(sliderHandle.style.left);
+            image2.style.clip = `rect(0, ${offsetX}px, ${image2.clientHeight}px, 0)`;
+        }
+
+        function submitFeedback() {
+            const feedback = document.getElementById('feedback').value;
+            const rating = document.querySelector('input[name="rating"]:checked')?.value;
+            if (!rating) {
+                alert('Please select a rating before submitting feedback.');
+                return;
+            }
+            fetch('/submit-feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ feedback, rating, image1: image1.src, image2: image2.src }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Feedback submitted successfully!');
+                document.getElementById('feedback').value = ''; // Clear the textbox
+                document.querySelector('input[name="rating"]:checked').checked = false; // Clear the radio buttons
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        function loadNextImages() {
+            currentIndex += 2;
+            fetch(`/get-images?index=${currentIndex}`)
+            .then(response => response.json())
+            .then(data => {
+                image1.src = data.image1;
+                image2.src = data.image2;
+                resetSlider();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function loadNextSingleImage() {
+            fetch(`/get-single-image?index=${singleImageIndex}`)
+            .then(response => response.json())
+            .then(data => {
+                singleImage.src = data.image;
+                singleImageIndex++;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function resetSlider() {
+            sliderHandle.style.left = '50%';
+            zoomLevel = 1;
+            zoomContainer.style.transform = `scale(${zoomLevel})`;
+            updateClipPath();
+        }
+
+        function zoomIn() {
+            zoomLevel += 0.1;
+            zoomContainer.style.transform = `scale(${zoomLevel})`;
+            singleImage.style.transform = `scale(${zoomLevel})`;
+        }
+
+        function zoomOut() {
+            zoomLevel -= 0.1;
+            if (zoomLevel < 1) zoomLevel = 1;
+            zoomContainer.style.transform = `scale(${zoomLevel})`;
+            singleImage.style.transform = `scale(${zoomLevel})`;
+        }
+
+        sliderContainer.addEventListener('mousedown', (event) => {
+            isDragging = true;
+            startX = event.clientX - panX;
+            startY = event.clientY - panY;
+            sliderContainer.style.cursor = 'grabbing';
+            event.preventDefault(); // Prevent text selection
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (!isDragging) return;
+            panX = event.clientX - startX;
+            panY = event.clientY - startY;
+            sliderContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            sliderContainer.style.cursor = 'grab';
+        });
+
+        singleImageContainer.addEventListener('mousedown', (event) => {
+            isDragging = true;
+            startX = event.clientX - panX;
+            startY = event.clientY - panY;
+            singleImageContainer.style.cursor = 'grabbing';
+            event.preventDefault(); // Prevent text selection
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (!isDragging) return;
+            panX = event.clientX - startX;
+            panY = event.clientY - startY;
+            singleImageContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            singleImageContainer.style.cursor = 'grab';
+        });
+    </script>
+</body>
+</html>
