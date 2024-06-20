@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Slider with Feedback</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            width: 90%;
+            max-width: 100%;
+            margin-bottom: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .side-image {
+            flex: 1;
+            width: 512px;
+            height: 512px;
+            border-right: 2px solid #ddd;
+        }
+
+        .side-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .slider-container {
+            flex: 1;
+            width: 512px;
+            height: 512px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slider-container img {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: clip 0.001ms;
+        }
+        .slider-container .image1 {
+            z-index: 1;
+        }
+        .slider-container .image2 {
+            z-index: 2;
+            clip: rect(0, 230px, 512px, 0);
+        }
+        .slider-handle {
+            position: absolute;
+            top: 0;
+            left: 230px;
+            width: 4px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            cursor: ew-resize;
+            z-index: 3;
+            border: 2px solid #333;
+            transition: left 0.001ms;
+        }
+        .feedback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-top: 5px;
+            background: #fff;
+            border-radius: 2px;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .feedback textarea {
+            width: 80%;
+            max-width: 600px;
+            margin-bottom: 5px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: none;
+            font-size: 8px;
+        }
+        .feedback button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .feedback button:hover {
+            background-color: #0056b3;
+        }
+        #radio-container p {
+            font-size: 10px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        #radio-container label {
+            margin: 0 10px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+   
+    <div class="container">
+        <div class="side-image" id="side-image-container">
+            <img src="side-images/erik-lucatero-d2MSDujJl2g-unsplash.jpg" alt="Side Image" id="side-image">
+        </div>
+        <div class="slider-container" id="slider-container">
+            <img src="images/image1.jpg" alt="Image 1" class="image1" id="image1">
+            <img src="images/image2.jpg" alt="Image 2" class="image2" id="image2">
+            <div class="slider-handle" id="slider-handle"></div>
+        </div>
+    </div>
+    <div class="feedback">
+        <div id="radio-container"></div>
+        <textarea id="feedback" rows="4" cols="50" placeholder="Enter your feedback..."></textarea><br>
+        <button onclick="submitFeedback()">Submit Feedback</button>
+        <button onclick="loadNextImages()">Load Next Images</button>
+        <button onclick="loadPreviousImages()">Load Previous Images</button>
+    </div>
+    <script>
+        const sliderHandle = document.getElementById('slider-handle');
+        const image1 = document.getElementById('image1');
+        const image2 = document.getElementById('image2');
+        const sliderContainer = document.getElementById('slider-container');
+        const sideImage = document.getElementById('side-image');
+        let currentIndex = 0;
+
+        sliderHandle.addEventListener('mousedown', startDragging);
+
+        function startDragging(event) {
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDragging);
+        }
+
+        function drag(event) {
+            const rect = sliderContainer.getBoundingClientRect();
+            let offsetX = event.clientX - rect.left;
+
+            if (offsetX < 0) offsetX = 0;
+            if (offsetX > rect.width) offsetX = rect.width;
+
+            sliderHandle.style.left = `${offsetX}px`;
+            image2.style.clip = `rect(0, ${offsetX}px, 512px, 0)`;
+        }
+
+        function stopDragging() {
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDragging);
+        }
+
+        function createRadioGroup(questionText, option1Text, option2Text, name) {
+            const container = document.getElementById('radio-container');
+
+            const questionLabel = document.createElement('p');
+            questionLabel.textContent = questionText;
+
+            const label1 = document.createElement('label');
+            label1.setAttribute('for', `${name}-option1`);
+            label1.textContent = option1Text;
+
+            const input1 = document.createElement('input');
+            input1.type = 'radio';
+            input1.name = name;
+            input1.value = option1Text.toLowerCase();
+            input1.id = `${name}-option1`;
+
+            const label2 = document.createElement('label');
+            label2.setAttribute('for', `${name}-option2`);
+            label2.textContent = option2Text;
+
+            const input2 = document.createElement('input');
+            input2.type = 'radio';
+            input2.name = name;
+            input2.value = option2Text.toLowerCase();
+            input2.id = `${name}-option2`;
+
+            container.appendChild(questionLabel);
+            container.appendChild(label1);
+            container.appendChild(input1);
+            container.appendChild(label2);
+            container.appendChild(input2);
+        }
+
+        function getSelectedRadioValue(name) {
+            const radios = document.getElementsByName(name);
+            for (const radio of radios) {
+                if (radio.checked) {
+                    return radio.value;
+                }
+            }
+            return null;
+        }
+
+        window.onload = function() {
+            createRadioGroup('Which Image is a better output?', 'Left', 'Right', 'direction');
+        };
+
+        function submitFeedback() {
+            const feedback = document.getElementById('feedback').value;
+            const image = image1.src;
+            const basename = image.split(".")[0];
+            const selectedValue = getSelectedRadioValue('direction');
+            console.log(selectedValue);
+            if (feedback) {
+                fetch('/submit-feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({image1: basename, feedback, better_value: selectedValue}),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('Feedback submitted successfully!');
+                    document.getElementById('feedback').value = ''; // Clear the textbox
+                    const radios = document.getElementsByName('direction');
+                    radios.forEach(radio => radio.checked = false); // Clear the radio buttons
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            } else {
+                alert("Please enter any feedback then press submit feedback button");
+            }
+        }
+
+        function resizeImage(imgElement, targetWidth, targetHeight) {
+            imgElement.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                ctx.drawImage(imgElement, 0, 0, targetWidth, targetHeight);
+                imgElement.src = canvas.toDataURL();
+            }
+        }
+
+        // Usage in your image loading functions:
+        function loadNextImages() {
+            currentIndex += 2;
+            fetch(`get-images-and-side-image?index=${currentIndex}`)
+            .then(response => response.json())
+            .then(data => {
+                image1.src = data.image1;
+                image2.src = data.image2;
+                
+                // Resize images to 512x512
+                resizeImage(image1, 512, 512);
+                resizeImage(image2, 512, 512);
+                
+                sideImage.src = data.sideImage;
+                sliderHandle.style.left = '300px';
+                image2.style.clip = 'rect(0, 300px, 512px, 0)';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function loadPreviousImages() {
+            if (currentIndex == 0) {
+                console.error("This is the first set of images, you can't go to the previous images");
+            } else {
+                currentIndex -= 2;
+                fetch(`get-previous-images?index=${currentIndex}`)
+                .then(response => response.json())
+                .then(data => {
+                    image1.src = data.image1;
+                    image2.src = data.image2;
+                    
+                    // Resize images to 512x512
+                    resizeImage(image1, 512, 512);
+                    resizeImage(image2, 512, 512);
+                    
+                    sideImage.src = data.sideImage;
+                    sliderHandle.style.left = '300px';
+                    image2.style.clip = 'rect(0, 300px, 512px, 0)';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+        }
+
+
+    </script>
+</body>
+</html>
